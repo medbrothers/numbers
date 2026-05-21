@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MedBrothers Numbers</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Outfit:wght@300;700;800;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Progress bars */
+        .progress-bar {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            gap: 4px;
+        }
+
+        .progress-bar .segment {
+            flex: 1;
+            height: 3px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+
+        .progress-bar .segment .fill {
+            height: 100%;
+            border-radius: 3px;
+            background: #fff;
+            width: 0%;
+        }
+
+        .progress-bar .segment.done .fill {
+            width: 100%;
+            transition: none;
+        }
+
+        .progress-bar .segment.active .fill {
+            width: 100%;
+            transition: width linear;
+        }
+
+        .progress-bar .segment.paused .fill {
+            transition: none !important;
+        }
+
+        /* Slides container */
+        .viewer {
+            position: fixed;
+            inset: 0;
+            perspective: 800px;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Number - very prominent */
+        .slide .big-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(14rem, 50vw, 28rem);
+            font-weight: 700;
+            line-height: 0.85;
+            opacity: 0.12;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            transition: opacity 0.6s ease 0.1s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .slide.active .big-number {
+            opacity: 0.35;
+            transform: translate(-50%, -55%) scale(1);
+        }
+
+        .slide:not(.active) .big-number {
+            transform: translate(-50%, -55%) scale(0.85);
+        }
+
+        /* Content */
+        .slide .content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 680px;
+            padding: 0 32px;
+        }
+
+        .slide .label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.5s ease 0.15s, transform 0.5s ease 0.15s;
+            margin-bottom: 24px;
+        }
+
+        .slide.active .label {
+            opacity: 0.5;
+            transform: translateY(0);
+        }
+
+        .slide .quote {
+            font-size: clamp(1.6rem, 5vw, 3.2rem);
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease 0.25s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.25s;
+            margin-bottom: 32px;
+        }
+
+        .slide.active .quote {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .slide .author {
+            display: inline-block;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 8px 24px;
+            border-radius: 999px;
+            letter-spacing: 0.05em;
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            transition: opacity 0.5s ease 0.4s, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.4s;
+        }
+
+        .slide.active .author {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Gradient overlays */
+        .slide::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .slide::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            border-radius: 2px;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .slide.active::after { opacity: 1; }
+
+        /* Person themes */
+        .slide[data-person="aho"]::before { background: radial-gradient(ellipse at 50% 40%, #2a1500 0%, #000 65%); }
+        .slide[data-person="aho"] .big-number { color: #f97316; }
+        .slide[data-person="aho"] .author { background: #f97316; color: #000; }
+        .slide[data-person="aho"]::after { background: linear-gradient(90deg, transparent, #f97316, transparent); }
+        .slide[data-person="aho"] .label { color: #f97316; }
+
+        .slide[data-person="gokhan"]::before { background: radial-gradient(ellipse at 50% 40%, #150828 0%, #000 65%); }
+        .slide[data-person="gokhan"] .big-number { color: #a78bfa; }
+        .slide[data-person="gokhan"] .author { background: #a78bfa; color: #000; }
+        .slide[data-person="gokhan"]::after { background: linear-gradient(90deg, transparent, #a78bfa, transparent); }
+        .slide[data-person="gokhan"] .label { color: #a78bfa; }
+
+        .slide[data-person="dervis"]::before { background: radial-gradient(ellipse at 50% 40%, #28001a 0%, #000 65%); }
+        .slide[data-person="dervis"] .big-number { color: #ec4899; }
+        .slide[data-person="dervis"] .author { background: #ec4899; color: #000; }
+        .slide[data-person="dervis"]::after { background: linear-gradient(90deg, transparent, #ec4899, transparent); }
+        .slide[data-person="dervis"] .label { color: #ec4899; }
+
+        /* Tap zones (invisible) */
+        .tap-left, .tap-right {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            z-index: 50;
+            cursor: pointer;
+        }
+        .tap-left { left: 0; width: 35%; }
+        .tap-right { right: 0; width: 65%; }
+
+        /* Close hint */
+        .hint {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.65rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.2);
+            white-space: nowrap;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Counter */
+        .counter {
+            position: fixed;
+            bottom: 48px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 500px) {
+            .progress-bar { left: 10px; right: 10px; top: 12px; }
+            .slide .content { padding: 0 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- Tap zones -->
+    <div class="tap-left" id="tapLeft"></div>
+    <div class="tap-right" id="tapRight"></div>
+
+    <!-- Viewer -->
+    <div class="viewer" id="viewer"></div>
+
+    <!-- Counter -->
+    <div class="counter" id="counter"></div>
+
+    <!-- Hint -->
+    <div class="hint">Dokun ve geç</div>
+
+    <script>
+        const STORY_DURATION = 4000;
+
+        const slides = [
+            { number: 1, quote: '"Gerçekten böyle mi düşünüyorsun?"', person: 'aho', author: '@aho' },
+            { number: 2, quote: '"Kaç yaşında adamsın, yaptığın hareketlere bak"', person: 'aho', author: '@aho' },
+            { number: 3, quote: '"Bir milyon dolar lazım"', person: 'gokhan', author: '@gokhan' },
+            { number: 4, quote: '"Ben karımı özledim"', person: 'gokhan', author: '@gokhan' },
+            { number: 5, quote: '"Erdem abi milyon dolarlık iş yapıyoruz"', person: 'dervis', author: '@dervis' },
+        ];
+
+        let current = 0;
+        let timer = null;
+        let isPaused = false;
+        let slideStart = 0;
+        let accumulated = 0;
+
+        const viewer = document.getElementById('viewer');
+        const progressBar = document.getElementById('progressBar');
+        const counter = document.getElementById('counter');
+
+        // Build slides
+        slides.forEach((s, i) => {
+            // Slide
+            const el = document.createElement('div');
+            el.className = 'slide';
+            el.dataset.person = s.person;
+            el.dataset.index = i;
+            el.innerHTML = `
+                <div class="big-number">${s.number}</div>
+                <div class="content">
+                    <div class="label">Number ${String(s.number).padStart(2, '0')}</div>
+                    <p class="quote">${s.quote}</p>
+                    <span class="author">${s.author}</span>
+                </div>
+            `;
+            viewer.appendChild(el);
+
+            // Progress segment
+            const seg = document.createElement('div');
+            seg.className = 'segment';
+            seg.innerHTML = '<div class="fill"></div>';
+            progressBar.appendChild(seg);
+        });
+
+        const slideEls = document.querySelectorAll('.slide');
+        const segments = document.querySelectorAll('.progress-bar .segment');
+
+        function goTo(index, skipAnim) {
+            if (index < 0 || index >= slides.length) return;
+            current = index;
+
+            // Update slides
+            slideEls.forEach((el, i) => {
+                el.classList.toggle('active', i === current);
+            });
+
+            // Update progress
+            segments.forEach((seg, i) => {
+                const fill = seg.querySelector('.fill');
+                seg.classList.remove('done', 'active', 'paused');
+                fill.style.width = '';
+                fill.style.transition = '';
+
+                if (i < current) {
+                    seg.classList.add('done');
+                    fill.style.width = '100%';
+                } else if (i === current) {
+                    seg.classList.add('active');
+                    // Force reflow then animate
+                    fill.style.width = '0%';
+                    fill.offsetHeight;
+                    fill.style.transition = `width ${STORY_DURATION}ms linear`;
+                    fill.style.width = '100%';
+                } else {
+                    fill.style.width = '0%';
+                }
+            });
+
+            // Counter
+            counter.textContent = `${current + 1} / ${slides.length}`;
+
+            // Timer
+            resetTimer();
+        }
+
+        function resetTimer() {
+            clearTimeout(timer);
+            isPaused = false;
+            accumulated = 0;
+            slideStart = Date.now();
+            timer = setTimeout(goNext, STORY_DURATION);
+        }
+
+        function goNext() {
+            if (current < slides.length - 1) {
+                goTo(current + 1);
+            } else {
+                goTo(0); // loop
+            }
+        }
+
+        function goPrev() {
+            if (current > 0) {
+                goTo(current - 1);
+            }
+        }
+
+        function pause() {
+            if (isPaused) return;
+            isPaused = true;
+            accumulated += Date.now() - slideStart;
+            clearTimeout(timer);
+
+            const seg = segments[current];
+            const fill = seg.querySelector('.fill');
+            const progress = Math.min(accumulated / STORY_DURATION, 1);
+            fill.style.transition = 'none';
+            fill.style.width = (progress * 100) + '%';
+            seg.classList.add('paused');
+        }
+
+        function resume() {
+            if (!isPaused) return;
+            isPaused = false;
+            slideStart = Date.now();
+            const remaining = Math.max(STORY_DURATION - accumulated, 0);
+
+            const seg = segments[current];
+            const fill = seg.querySelector('.fill');
+            seg.classList.remove('paused');
+            fill.offsetHeight;
+            fill.style.transition = `width ${remaining}ms linear`;
+            fill.style.width = '100%';
+
+            timer = setTimeout(goNext, remaining);
+        }
+
+        // Touch / click handling
+        let pointerStartX = 0;
+        let pointerStartTime = 0;
+        let longPressTimeout = null;
+
+        document.getElementById('tapLeft').addEventListener('pointerdown', (e) => {
+            pointerStartX = e.clientX;
+            pointerStartTime = Date.now();
+            longPressTimeout = setTimeout(() => pause(), 150);
+        });
+
+        document.getElementById('tapRight').addEventListener('pointerdown', (e) => {
+            pointerStartX = e.clientX;
+            pointerStartTime = Date.now();
+            longPressTimeout = setTimeout(() => pause(), 150);
+        });
+
+        document.addEventListener('pointerup', (e) => {
+            clearTimeout(longPressTimeout);
+            const dt = Date.now() - pointerStartTime;
+            const dx = Math.abs(e.clientX - pointerStartX);
+
+            if (isPaused) {
+                resume();
+                if (dt > 200) return; // was a long press, just resume
+            }
+
+            if (dx < 30 && dt < 300) {
+                if (e.clientX < window.innerWidth * 0.35) {
+                    goPrev();
+                } else {
+                    goNext();
+                }
+            }
+        });
+
+        document.addEventListener('pointercancel', () => {
+            clearTimeout(longPressTimeout);
+            if (isPaused) resume();
+        });
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') goNext();
+            else if (e.key === 'ArrowLeft') goPrev();
+        });
+
+        // Start
+        goTo(0);
+    </script>
+
+</body>
+</html>
